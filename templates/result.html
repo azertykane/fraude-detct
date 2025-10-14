@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Résultats - Détection de Fraude</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --fraud-color: #dc3545;
+      --normal-color: #28a745;
+      --primary-color: #2c5aa0;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Poppins', sans-serif;
+      min-height: 100vh;
+    }
+    
+    .content-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      margin-top: 30px;
+      margin-bottom: 30px;
+    }
+    
+    .main-title {
+      color: var(--primary-color);
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .stats-card {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+      border-left: 5px solid var(--primary-color);
+    }
+    
+    .fraud-stat {
+      border-left-color: var(--fraud-color);
+    }
+    
+    .normal-stat {
+      border-left-color: var(--normal-color);
+    }
+    
+    .table-container {
+      background: white;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+      margin-bottom: 20px;
+    }
+    
+    .table-wrapper {
+      overflow-x: auto;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    
+    th {
+      background: var(--primary-color);
+      color: white;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 12px 8px;
+      font-weight: 600;
+    }
+    
+    td {
+      padding: 10px 8px;
+      text-align: center;
+      border-bottom: 1px solid #eee;
+    }
+    
+    tr:hover {
+      background-color: #f8f9fa;
+      transition: background-color 0.2s;
+    }
+    
+    .fraud-cell { 
+      background-color: rgba(220, 53, 69, 0.1); 
+      color: var(--fraud-color); 
+      font-weight: bold;
+      border-radius: 5px;
+      padding: 8px 12px;
+    }
+    
+    .normal-cell { 
+      background-color: rgba(40, 167, 69, 0.1); 
+      color: var(--normal-color); 
+      font-weight: bold;
+      border-radius: 5px;
+      padding: 8px 12px;
+    }
+    
+    .hidden-cell {
+      background-color: #f8f9fa;
+      color: #6c757d;
+      font-style: italic;
+      padding: 8px 12px;
+      border-radius: 5px;
+    }
+    
+    .loading-cell {
+      background-color: #fff3cd;
+      color: #856404;
+      font-style: italic;
+      padding: 8px 12px;
+      border-radius: 5px;
+    }
+    
+    .action-btn {
+      border-radius: 8px;
+      font-weight: 500;
+      padding: 8px 16px;
+      margin: 2px;
+      font-size: 12px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-predict {
+      background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+      color: white;
+    }
+    
+    .btn-predict:hover:not(:disabled) {
+      background: linear-gradient(45deg, #ee5a24, #ff6b6b);
+      transform: translateY(-2px);
+    }
+    
+    .btn-predict:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+    
+    .pagination-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+    }
+    
+    .page-info {
+      font-weight: 500;
+      color: #666;
+    }
+    
+    .pagination .page-link {
+      border-radius: 8px;
+      margin: 0 2px;
+      font-weight: 500;
+    }
+    
+    .pagination .page-item.active .page-link {
+      background: var(--primary-color);
+      border-color: var(--primary-color);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="content-container">
+      <h1 class="main-title">
+        <i class="fas fa-chart-bar me-2"></i>Résultats de Détection de Fraude
+      </h1>
+      
+      <!-- Messages Flash -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      
+      <!-- Cartes de statistiques -->
+      <div class="row">
+        <div class="col-md-4">
+          <div class="stats-card normal-stat">
+            <div class="d-flex align-items-center">
+              <div class="me-3">
+                <i class="fas fa-check-circle fa-2x text-success"></i>
+              </div>
+              <div>
+                <h4 class="mb-0">{{ normal_count }}</h4>
+                <p class="text-muted mb-0">Transactions Normales</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="stats-card fraud-stat">
+            <div class="d-flex align-items-center">
+              <div class="me-3">
+                <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+              </div>
+              <div>
+                <h4 class="mb-0">{{ fraud_count }}</h4>
+                <p class="text-muted mb-0">Fraudes Détectées</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="stats-card">
+            <div class="d-flex align-items-center">
+              <div class="me-3">
+                <i class="fas fa-database fa-2x text-primary"></i>
+              </div>
+              <div>
+                <h4 class="mb-0">{{ total_rows }}</h4>
+                <p class="text-muted mb-0">Total Transactions</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Contrôles -->
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <span class="page-info">
+            Page {{ current_page }} sur {{ total_pages }} 
+            (Lignes {{ ((current_page - 1) * per_page) + 1 }} à {{ [current_page * per_page, total_rows] | min }} sur {{ total_rows }})
+          </span>
+        </div>
+        <div>
+          <button class="btn btn-success action-btn" id="revealAllBtn">
+            <i class="fas fa-bolt me-1"></i>Révéler tout
+          </button>
+          <a href="/" class="btn btn-outline-primary action-btn">
+            <i class="fas fa-home me-1"></i>Accueil
+          </a>
+          <a href="/manual" class="btn btn-primary action-btn">
+            <i class="fas fa-plus me-1"></i>Nouvelle Transaction
+          </a>
+        </div>
+      </div>
+      
+      <!-- Tableau -->
+      <div class="table-container">
+        <div class="table-wrapper" id="tableWrapper">
+          {% for table in tables %}
+            {{ table | safe }}
+          {% endfor %}
+        </div>
+      </div>
+      
+      <!-- Pagination -->
+      <div class="pagination-container">
+        <div>
+          {% if current_page > 1 %}
+            <a href="{{ url_for('results', results_id=results_id, page=current_page-1) }}" class="btn btn-outline-primary action-btn">
+              <i class="fas fa-chevron-left me-1"></i>Précédent
+            </a>
+          {% endif %}
+        </div>
+        
+        <nav>
+          <ul class="pagination mb-0">
+            {% for page_num in range(1, total_pages + 1) %}
+              {% if page_num == current_page %}
+                <li class="page-item active">
+                  <span class="page-link">{{ page_num }}</span>
+                </li>
+              {% else %}
+                <li class="page-item">
+                  <a class="page-link" href="{{ url_for('results', results_id=results_id, page=page_num) }}">{{ page_num }}</a>
+                </li>
+              {% endif %}
+            {% endfor %}
+          </ul>
+        </nav>
+        
+        <div>
+          {% if current_page < total_pages %}
+            <a href="{{ url_for('results', results_id=results_id, page=current_page+1) }}" class="btn btn-outline-primary action-btn">
+              Suivant<i class="fas fa-chevron-right ms-1"></i>
+            </a>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Téléchargement -->
+      <div class="text-center mt-4">
+        <a class="btn btn-success action-btn"
+           href="data:text/csv;charset=utf-8,{{ csv_data | urlencode }}"
+           download="predictions_fraude.csv">
+          <i class="fas fa-download me-2"></i>📥 Télécharger les Résultats CSV
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      console.log("🚀 Initialisation de la page résultats...");
+      
+      const table = document.querySelector("table");
+      if (!table) {
+        console.error("❌ Tableau non trouvé");
+        return;
+      }
+
+      const resultsId = "{{ results_id }}";
+      console.log("📊 Results ID:", resultsId);
+
+      // Ajouter les colonnes d'action
+      const headerRow = table.querySelector("thead tr");
+      headerRow.insertAdjacentHTML("afterbegin", "<th>#</th>");
+      headerRow.insertAdjacentHTML("beforeend", "<th>Action</th>");
+
+      // Préparer les lignes
+      const rows = Array.from(table.querySelectorAll("tbody tr"));
+      console.log(`📋 ${rows.length} lignes à traiter`);
+
+      rows.forEach((row, index) => {
+        const globalIndex = ({{ current_page }} - 1) * {{ per_page }} + index;
+        
+        // Ajouter numéro de ligne
+        const numberCell = document.createElement("td");
+        numberCell.textContent = globalIndex + 1;
+        numberCell.style.fontWeight = "bold";
+        row.insertBefore(numberCell, row.firstChild);
+
+        // Ajouter bouton de vérification
+        const actionCell = document.createElement("td");
+        const button = document.createElement("button");
+        button.className = "btn btn-predict btn-sm action-btn";
+        button.innerHTML = '<i class="fas fa-search me-1"></i>Vérifier';
+        button.onclick = function() {
+          checkPrediction(row, globalIndex, button);
+        };
+        actionCell.appendChild(button);
+        row.appendChild(actionCell);
+
+        // Ajouter une cellule pour afficher le résultat
+        const resultCell = document.createElement("td");
+        resultCell.innerHTML = '<span class="hidden-cell">👁️ Non vérifié</span>';
+        resultCell.className = "prediction-result";
+        row.appendChild(resultCell);
+      });
+
+      // Fonction pour vérifier une prédiction
+      async function checkPrediction(row, rowIndex, button) {
+        if (row.classList.contains("checked")) return;
+
+        const resultCell = row.querySelector(".prediction-result");
+        
+        // Afficher chargement
+        resultCell.innerHTML = '<span class="loading-cell"><i class="fas fa-spinner fa-spin me-1"></i>Analyse...</span>';
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Analyse...';
+
+        try {
+          const response = await fetch(`/get_prediction/${resultsId}/${rowIndex}`);
+          const data = await response.json();
+
+          if (response.ok) {
+            // Afficher le résultat
+            if (data.prediction === 1) {
+              resultCell.innerHTML = '<span class="fraud-cell">💥 FRAUDE DÉTECTÉE</span>';
+            } else {
+              resultCell.innerHTML = '<span class="normal-cell">✅ Transaction normale</span>';
+            }
+            
+            button.innerHTML = '<i class="fas fa-check me-1"></i>Vérifié';
+            button.classList.remove('btn-predict');
+            button.classList.add('btn-outline-secondary');
+            row.classList.add("checked");
+          } else {
+            throw new Error(data.error);
+          }
+        } catch (error) {
+          console.error("Erreur:", error);
+          resultCell.innerHTML = '<span class="hidden-cell" style="color: red;">❌ Erreur</span>';
+          button.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Erreur';
+          button.disabled = false;
+        }
+      }
+
+      // Révéler toutes les lignes
+      async function revealAllRows() {
+        const buttons = Array.from(document.querySelectorAll('.btn-predict:not(:disabled)'));
+        
+        for (let i = 0; i < buttons.length; i++) {
+          const button = buttons[i];
+          const row = button.closest('tr');
+          const rowIndex = ({{ current_page }} - 1) * {{ per_page }} + Array.from(row.parentNode.children).indexOf(row);
+          
+          await checkPrediction(row, rowIndex, button);
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      // Événement du bouton "Révéler tout"
+      document.getElementById('revealAllBtn').addEventListener('click', revealAllRows);
+
+      console.log("✅ Page résultats initialisée avec succès");
+    });
+  </script>
+</body>
+</html>
